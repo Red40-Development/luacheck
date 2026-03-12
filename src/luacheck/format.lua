@@ -235,32 +235,51 @@ function format.builtin_formatters.JUnit(report, file_names)
    local opts = {}
    local buf = {[[<?xml version="1.0" encoding="UTF-8"?>]]}
    local num_testcases = 0
+   local num_failures = 0
+   local num_errors = 0
 
    for _, file_report in ipairs(report) do
       if file_report.fatal or #file_report == 0 then
          num_testcases = num_testcases + 1
       else
          num_testcases = num_testcases + #file_report
+
+         local warnings, errors = count_warnings_errors(file_report)
+         num_failures = num_failures + warnings
+         num_errors = num_errors + errors
+      end
+
+      if file_report.fatal then
+         num_errors = num_errors + 1
       end
    end
 
-   table.insert(buf, ([[<testsuite name="Luacheck report" tests="%d">]]):format(num_testcases))
+   table.insert(buf, ([[<testsuite name="Luacheck report" tests="%d" failures="%d" errors="%d">]]):format(
+      num_testcases, num_failures, num_errors))
 
    for file_i, file_report in ipairs(report) do
+      local escaped_file_name = escape_xml(file_names[file_i])
+
       if file_report.fatal then
-         table.insert(buf, ([[    <testcase name="%s" classname="%s">]]):format(
-            escape_xml(file_names[file_i]), escape_xml(file_names[file_i])))
-         table.insert(buf, ([[        <error type="%s"/>]]):format(escape_xml(fatal_type(file_report))))
+         table.insert(buf, ([[    <testcase name="%s" classname="%s" file="%s">]]):format(
+            escaped_file_name, escaped_file_name, escaped_file_name))
+         table.insert(buf, ([[        <error type="%s" message="%s"/>]]):format(
+            escape_xml(fatal_type(file_report)), escape_xml(file_report.msg)))
          table.insert(buf, [[    </testcase>]])
       elseif #file_report == 0 then
-         table.insert(buf, ([[    <testcase name="%s" classname="%s"/>]]):format(
-            escape_xml(file_names[file_i]), escape_xml(file_names[file_i])))
+         table.insert(buf, ([[    <testcase name="%s" classname="%s" file="%s"/>]]):format(
+            escaped_file_name, escaped_file_name, escaped_file_name))
       else
-         for event_i, event in ipairs(file_report) do
-            table.insert(buf, ([[    <testcase name="%s:%d" classname="%s">]]):format(
-               escape_xml(file_names[file_i]), event_i, escape_xml(file_names[file_i])))
-            table.insert(buf, ([[        <failure type="%s" message="%s"/>]]):format(
-               escape_xml(event_code(event)), escape_xml(format_event(file_names[file_i], event, opts))))
+         for _, event in ipairs(file_report) do
+            local message = escape_xml(format_event(file_names[file_i], event, opts))
+            local issue_type = event_code(event)
+            local issue_tag = event.code:sub(1, 1) == "0" and "error" or "failure"
+
+            table.insert(buf, ([[    <testcase name="%s:%d:%d" classname="%s" file="%s" line="%d" column="%d">]]):format(
+               escaped_file_name, event.line, event.column, escaped_file_name, escaped_file_name,
+               event.line, event.column))
+            table.insert(buf, ([[        <%s type="%s" message="%s">%s</%s>]]):format(
+               issue_tag, escape_xml(issue_type), message, message, issue_tag))
             table.insert(buf, [[    </testcase>]])
          end
       end
