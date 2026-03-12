@@ -2,11 +2,11 @@
 
 [![Join the chat at https://gitter.im/luacheck/Lobby](https://badges.gitter.im/luacheck/Lobby.svg)](https://gitter.im/luacheck/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-[![Luacheck](https://img.shields.io/github/actions/workflow/status/lunarmodules/luacheck/luacheck.yml?branch=master&label=Luacheck&logo=Lua)](https://github.com/lunarmodules/luacheck/actions?workflow=Luacheck)
-[![Busted](https://img.shields.io/github/actions/workflow/status/lunarmodules/luacheck/busted.yml?branch=master&label=Busted&logo=Lua)](https://github.com/lunarmodules/luacheck/actions?workflow=Busted)
-[![Coverage Status](https://img.shields.io/coveralls/github/lunarmodules/luacheck?label=Coveralls&logo=Coveralls)](https://coveralls.io/github/lunarmodules/luacheck?branch=master)
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/lunarmodules/luacheck?label=Tag&logo=GitHub)](https://github.com/lunarmodules/luacheck/releases)
-[![Luarocks](https://img.shields.io/luarocks/v/lunarmodules/luacheck?label=Luarocks&logo=Lua)](https://luarocks.org/modules/lunarmodules/luacheck)
+[![Luacheck](https://img.shields.io/github/actions/workflow/status/Red40-Development/luacheck/luacheck.yml?branch=master&label=Luacheck&logo=Lua)](https://github.com/Red40-Development/luacheck/actions?workflow=Luacheck)
+[![Busted](https://img.shields.io/github/actions/workflow/status/Red40-Development/luacheck/busted.yml?branch=master&label=Busted&logo=Lua)](https://github.com/Red40-Development/luacheck/actions?workflow=Busted)
+[![Coverage Status](https://img.shields.io/coveralls/github/Red40-Development/luacheck?label=Coveralls&logo=Coveralls)](https://coveralls.io/github/Red40-Development/luacheck?branch=master)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/Red40-Development/luacheck?label=Tag&logo=GitHub)](https://github.com/Red40-Development/luacheck/releases)
+[![Luarocks](https://img.shields.io/luarocks/v/Red40-Development/luacheck?label=Luarocks&logo=Lua)](https://luarocks.org/modules/Red40-Development/luacheck)
 
 ## Contents
 
@@ -126,31 +126,31 @@ You can either build your own or download a prebuilt version.
 To build your own, execute the following command from the source directory of this project:
 
 ```console
-$ docker build -t ghcr.io/lunarmodules/luacheck:HEAD .
+$ docker build -t ghcr.io/Red40-Development/luacheck:HEAD .
 ```
 
 To use a prebuilt one, download it from the GitHub Container Registry.
 Here we use the one tagged *latest*, but you can substitute *latest* for any tagged release.
 
 ```console
-$ docker pull ghcr.io/lunarmodules/luacheck:latest
+$ docker pull ghcr.io/Red40-Development/luacheck:latest
 ```
 
 Once you have a container you can run it on one file or a source tree (substitute *latest* with *HEAD* if you built your own or with the tagged version you want if applicable):
 
 ```console
 # Run on an entire directory
-$ docker run -v "$(pwd):/data" ghcr.io/lunarmodules/luacheck:latest .
+$ docker run -v "$(pwd):/data" ghcr.io/Red40-Development/luacheck:latest .
 
 # Run on one file:
-$ docker run -v "$(pwd):/data" ghcr.io/lunarmodules/luacheck:latest bin/luacheck.lua
+$ docker run -v "$(pwd):/data" ghcr.io/Red40-Development/luacheck:latest bin/luacheck.lua
 ```
 
 A less verbose way to run it in most shells is with at alias:
 
 ```console
 # In a shell or in your shell's RC file:
-$ alias luacheck='docker run -v "$(pwd):/data" ghcr.io/lunarmodules/luacheck:latest'
+$ alias luacheck='docker run -v "$(pwd):/data" ghcr.io/Red40-Development/luacheck:latest'
 
 # Thereafter just run:
 $ luacheck .
@@ -173,14 +173,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Luacheck linter
-        uses: lunarmodules/luacheck@v1
+        uses: Red40-Development/luacheck@v2
 ```
 
 By default the GH Action is configured to run `luacheck .`, but you can also pass it your own `args` to replace the default input of `.`.
 
 ```yaml
       - name: Luacheck linter
-        uses: lunarmodules/luacheck@v1
+        uses: Red40-Development/luacheck@v2
         with:
             args: myfile.lua
 ```
