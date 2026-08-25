@@ -563,6 +563,25 @@ describe("parser", function()
          )
       end)
 
+      it("parses local declaration with destructuring correctly", function()
+         assert.same({
+            tag = "Local", {
+               {tag = "Id", "a"}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}}
+            }
+         }, get_node("local a in t"))
+         assert.same({
+            tag = "Local", {
+               {tag = "Id", "a"},
+               {tag = "Id", "b"}
+         }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}},
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "b"}}
+            }
+         }, get_node("local a, b in t"))
+      end)
+
       it("parses local function declaration correctly", function()
          assert.same({
             tag = "Localrec",

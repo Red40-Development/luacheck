@@ -851,6 +851,17 @@ statements["local"] = function(state)
 
    if test_and_skip_token(state, "=") then
       rhs = parse_expression_list(state)
+   elseif test_and_skip_token(state, "in") then
+      -- FiveM/Luau destructuring statement, e.g. `local a, b in tbl`.
+      -- Desugar into the equivalent field-access assignment so the rest of
+      -- the checker can treat it exactly like `local a, b = tbl.a, tbl.b`.
+      local table_node = parse_expression(state)
+      rhs = {}
+
+      for _, name_node in ipairs(lhs) do
+         local field_node = new_outer_node(name_node, "String", {name_node[1]})
+         rhs[#rhs + 1] = new_inner_node(name_node, table_node, "Index", {table_node, field_node})
+      end
    end
 
    return new_inner_node(start_range, rhs and rhs[#rhs] or lhs[#lhs], "Local", {lhs, rhs})
