@@ -522,6 +522,25 @@ suffix_handlers["?["] = function(state, base_node)
    return ast_node
 end
 
+-- FiveM/Luau safe navigation on a method call or funcargs, e.g. `t?:m()`,
+-- `t?(...)`, `t?{...}`, `t?"..."`. `?.` and `?[` are lexed as their own
+-- combined tokens (see suffix_handlers["?."] and ["?["] above) since the
+-- lexer special-cases those two, so this only ever sees a bare "?" here,
+-- which it delegates to the plain (non-safe-nav) handler for whatever
+-- suffix follows: the AST shape for a call/method is the same either way,
+-- safe navigation only changes runtime short-circuiting, not structure.
+suffix_handlers["?"] = function(state, base_node)
+   -- Skip "?".
+   skip_token(state)
+   local handler = suffix_handlers[state.token]
+
+   if not handler then
+      parse_error(state, "expected suffixed expression after '?'")
+   end
+
+   return handler(state, base_node)
+end
+
 suffix_handlers["["] = function(state, base_node)
    local bracket_range = copy_range(state)
    -- Skip "[".

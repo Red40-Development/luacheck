@@ -819,6 +819,15 @@ describe("parser", function()
             get_error("a:b:c()"))
          assert.same({line = 1, offset = 3, end_offset = 3, msg = "expected identifier near <eof>"}, get_error("a:"))
       end)
+
+      it("parses safe navigation on calls and method calls correctly", function()
+         assert.same(get_node("a:b()"), get_node("a?:b()"))
+         assert.same(get_node("a(b)"), get_node("a?(b)"))
+         assert.same(get_node("a{}"), get_node("a?{}"))
+         assert.same(get_node("a'b'"), get_node("a?'b'"))
+         assert.same({line = 1, offset = 3, end_offset = 3, msg = "expected suffixed expression after '?' near '1'"},
+            get_error("a?1"))
+      end)
    end)
 
    describe("when parsing expressions", function()
