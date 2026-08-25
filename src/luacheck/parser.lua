@@ -532,13 +532,13 @@ end
 suffix_handlers["?"] = function(state, base_node)
    -- Skip "?".
    skip_token(state)
-   local handler = suffix_handlers[state.token]
+   local token = state.token
 
-   if not handler then
+   if token ~= ":" and token ~= "(" and token ~= "{" and token ~= "string" then
       parse_error(state, "expected suffixed expression after '?'")
    end
 
-   return handler(state, base_node)
+   return suffix_handlers[token](state, base_node)
 end
 
 suffix_handlers["["] = function(state, base_node)
