@@ -391,13 +391,29 @@ simple_expressions["{"] = function(state)
             skip_token(state)  -- Load name again.
             value_node = parse_expression(state)
          end
+      elseif state.token == "." then
+         -- FiveM/Luau table-constructor sugar: `. name [ = expr ]`.
+         -- With no `= expr`, the value defaults to `true` (set syntax).
+         skip_token(state)
+         key_node = parse_id(state, "String")
+
+         if test_and_skip_token(state, "=") then
+            value_node = parse_expression(state)
+         else
+            value_node = new_outer_node(key_node, "True", {})
+         end
       elseif state.token == "[" then
-         -- [ `expr` ] = `expr`.
+         -- [ `expr` ] [ = `expr` ].
+         -- With no `= expr`, the value defaults to `true` (set syntax).
          skip_token(state)
          key_node = parse_expression(state)
          check_and_skip_closing_token(state, first_token_range, "[")
-         check_and_skip_token(state, "=")
-         value_node = parse_expression(state)
+
+         if test_and_skip_token(state, "=") then
+            value_node = parse_expression(state)
+         else
+            value_node = new_inner_node(first_token_range, state, "True", {})
+         end
       else
          -- Expression in array part.
          value_node = parse_expression(state)

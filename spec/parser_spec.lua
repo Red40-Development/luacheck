@@ -886,6 +886,17 @@ describe("parser", function()
             get_error("return {a = "))
       end)
 
+      it("parses table constructor set sugar correctly", function()
+         assert.same({tag = "Table",
+                        {tag = "Pair", {tag = "String", "a"}, {tag = "Number", "1"}},
+                        {tag = "Pair", {tag = "String", "b"}, {tag = "True"}}
+                     }, get_expr("{.a = 1, .b}"))
+         assert.same({tag = "Table",
+                        {tag = "Pair", {tag = "Number", "1"}, {tag = "Number", "2"}},
+                        {tag = "Pair", {tag = "Number", "3"}, {tag = "True"}}
+                     }, get_expr("{[1] = 2, [3]}"))
+      end)
+
       it("parses simple expressions correctly", function()
          assert.same({tag = "Op", "unm",
                         {tag = "Number", "1"}
