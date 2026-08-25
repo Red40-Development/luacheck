@@ -682,6 +682,43 @@ describe("parser", function()
             get_error("a, (b) = c")
          )
       end)
+
+      it("parses destructuring reassignment correctly", function()
+         assert.same({
+            tag = "Set", {
+               {tag = "Id", "a"}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}}
+            }
+         }, get_node("a in t"))
+         assert.same({
+            tag = "Set", {
+               {tag = "Id", "a"},
+               {tag = "Id", "b"}
+         }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}},
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "b"}}
+            }
+         }, get_node("a, b in t"))
+         assert.same({
+            tag = "Set", {
+               {tag = "Index", {tag = "Id", "x"}, {tag = "String", "a"}}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}}
+            }
+         }, get_node("x.a in t"))
+         assert.same({
+            tag = "Set", {
+               {tag = "Index", {tag = "Id", "x"}, {tag = "Number", "1"}}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "Number", "1"}}
+            }
+         }, get_node("x[1] in t"))
+         assert.same(
+            {line = 1, offset = 1, end_offset = 4, msg = "unexpected assignment key"},
+            get_error("x[y] in t")
+         )
+      end)
    end)
 
    describe("when parsing expression statements", function()

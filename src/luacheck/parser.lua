@@ -913,6 +913,19 @@ statements["goto"] = function(state)
    return ast_node
 end
 
+-- For the `lhs in tbl` reassignment form: the field name a given lhs target
+-- reads back out of `tbl` is whatever identifies that target itself, e.g.
+-- `a` reads `tbl.a`, and `x.y` (or `x["y"]`) reads `tbl.y`.
+local function assignment_key_node(target_node)
+   if target_node.tag == "Id" then
+      return new_outer_node(target_node, "String", {target_node[1]})
+   elseif target_node.tag == "Index" and (target_node[2].tag == "String" or target_node[2].tag == "Number") then
+      return target_node[2]
+   else
+      parser.syntax_error("unexpected assignment key", target_node)
+   end
+end
+
 local function parse_expression_statement(state)
    local lhs
    local start_range = copy_range(state)
@@ -962,6 +975,20 @@ local function parse_expression_statement(state)
       end
 
       return new_inner_node(start_range, rhs[1], "OpSet", {lhs, rhs, compound_operator})
+   elseif state.token == "in" then
+      -- FiveM/Luau destructuring reassignment, e.g. `a, b in tbl`. Desugar
+      -- into the equivalent field-access assignment, same as the `local`
+      -- form, so the rest of the checker treats it like `a, b = tbl.a, tbl.b`.
+      skip_token(state)
+      local table_node = parse_expression(state)
+      local rhs = {}
+
+      for _, target_node in ipairs(lhs) do
+         local field_node = assignment_key_node(target_node)
+         rhs[#rhs + 1] = new_inner_node(target_node, table_node, "Index", {table_node, field_node})
+      end
+
+      return new_inner_node(start_range, table_node, "Set", {lhs, rhs})
    else
       -- This is an assignment in the form `lhs = rhs`.
       check_and_skip_token(state, "=")
