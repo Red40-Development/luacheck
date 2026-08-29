@@ -563,6 +563,25 @@ describe("parser", function()
          )
       end)
 
+      it("parses local declaration with destructuring correctly", function()
+         assert.same({
+            tag = "Local", {
+               {tag = "Id", "a"}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}}
+            }
+         }, get_node("local a in t"))
+         assert.same({
+            tag = "Local", {
+               {tag = "Id", "a"},
+               {tag = "Id", "b"}
+         }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}},
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "b"}}
+            }
+         }, get_node("local a, b in t"))
+      end)
+
       it("parses local function declaration correctly", function()
          assert.same({
             tag = "Localrec",
@@ -661,6 +680,43 @@ describe("parser", function()
          assert.same(
             {line = 1, offset = 4, end_offset = 4, msg = "expected identifier or field near '('"},
             get_error("a, (b) = c")
+         )
+      end)
+
+      it("parses destructuring reassignment correctly", function()
+         assert.same({
+            tag = "Set", {
+               {tag = "Id", "a"}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}}
+            }
+         }, get_node("a in t"))
+         assert.same({
+            tag = "Set", {
+               {tag = "Id", "a"},
+               {tag = "Id", "b"}
+         }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}},
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "b"}}
+            }
+         }, get_node("a, b in t"))
+         assert.same({
+            tag = "Set", {
+               {tag = "Index", {tag = "Id", "x"}, {tag = "String", "a"}}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "String", "a"}}
+            }
+         }, get_node("x.a in t"))
+         assert.same({
+            tag = "Set", {
+               {tag = "Index", {tag = "Id", "x"}, {tag = "Number", "1"}}
+            }, {
+               {tag = "Index", {tag = "Id", "t"}, {tag = "Number", "1"}}
+            }
+         }, get_node("x[1] in t"))
+         assert.same(
+            {line = 1, offset = 1, end_offset = 4, msg = "unexpected assignment key"},
+            get_error("x[y] in t")
          )
       end)
    end)
@@ -763,6 +819,15 @@ describe("parser", function()
             get_error("a:b:c()"))
          assert.same({line = 1, offset = 3, end_offset = 3, msg = "expected identifier near <eof>"}, get_error("a:"))
       end)
+
+      it("parses safe navigation on calls and method calls correctly", function()
+         assert.same(get_node("a:b()"), get_node("a?:b()"))
+         assert.same(get_node("a(b)"), get_node("a?(b)"))
+         assert.same(get_node("a{}"), get_node("a?{}"))
+         assert.same(get_node("a'b'"), get_node("a?'b'"))
+         assert.same({line = 1, offset = 3, end_offset = 3, msg = "expected suffixed expression after '?' near '1'"},
+            get_error("a?1"))
+      end)
    end)
 
    describe("when parsing expressions", function()
@@ -828,6 +893,17 @@ describe("parser", function()
             get_error("return {a,,}"))
          assert.same({line = 1, offset = 13, end_offset = 13, msg = "expected expression near <eof>"},
             get_error("return {a = "))
+      end)
+
+      it("parses table constructor set sugar correctly", function()
+         assert.same({tag = "Table",
+                        {tag = "Pair", {tag = "String", "a"}, {tag = "Number", "1"}},
+                        {tag = "Pair", {tag = "String", "b"}, {tag = "True"}}
+                     }, get_expr("{.a = 1, .b}"))
+         assert.same({tag = "Table",
+                        {tag = "Pair", {tag = "Number", "1"}, {tag = "Number", "2"}},
+                        {tag = "Pair", {tag = "Number", "3"}, {tag = "True"}}
+                     }, get_expr("{[1] = 2, [3]}"))
       end)
 
       it("parses simple expressions correctly", function()

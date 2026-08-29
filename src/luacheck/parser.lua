@@ -391,13 +391,29 @@ simple_expressions["{"] = function(state)
             skip_token(state)  -- Load name again.
             value_node = parse_expression(state)
          end
+      elseif state.token == "." then
+         -- FiveM/Luau table-constructor sugar: `. name [ = expr ]`.
+         -- With no `= expr`, the value defaults to `true` (set syntax).
+         skip_token(state)
+         key_node = parse_id(state, "String")
+
+         if test_and_skip_token(state, "=") then
+            value_node = parse_expression(state)
+         else
+            value_node = new_outer_node(key_node, "True", {})
+         end
       elseif state.token == "[" then
-         -- [ `expr` ] = `expr`.
+         -- [ `expr` ] [ = `expr` ].
+         -- With no `= expr`, the value defaults to `true` (set syntax).
          skip_token(state)
          key_node = parse_expression(state)
          check_and_skip_closing_token(state, first_token_range, "[")
-         check_and_skip_token(state, "=")
-         value_node = parse_expression(state)
+
+         if test_and_skip_token(state, "=") then
+            value_node = parse_expression(state)
+         else
+            value_node = new_inner_node(first_token_range, state, "True", {})
+         end
       else
          -- Expression in array part.
          value_node = parse_expression(state)
@@ -504,6 +520,25 @@ suffix_handlers["?["] = function(state, base_node)
    local ast_node = new_inner_node(base_node, state, "Index", {base_node, index_node})
    check_and_skip_closing_token(state, bracket_range, "[")
    return ast_node
+end
+
+-- FiveM/Luau safe navigation on a method call or funcargs, e.g. `t?:m()`,
+-- `t?(...)`, `t?{...}`, `t?"..."`. `?.` and `?[` are lexed as their own
+-- combined tokens (see suffix_handlers["?."] and ["?["] above) since the
+-- lexer special-cases those two, so this only ever sees a bare "?" here,
+-- which it delegates to the plain (non-safe-nav) handler for whatever
+-- suffix follows: the AST shape for a call/method is the same either way,
+-- safe navigation only changes runtime short-circuiting, not structure.
+suffix_handlers["?"] = function(state, base_node)
+   -- Skip "?".
+   skip_token(state)
+   local token = state.token
+
+   if token ~= ":" and token ~= "(" and token ~= "{" and token ~= "string" then
+      parse_error(state, "expected suffixed expression after '?'")
+   end
+
+   return suffix_handlers[token](state, base_node)
 end
 
 suffix_handlers["["] = function(state, base_node)
@@ -851,6 +886,17 @@ statements["local"] = function(state)
 
    if test_and_skip_token(state, "=") then
       rhs = parse_expression_list(state)
+   elseif test_and_skip_token(state, "in") then
+      -- FiveM/Luau destructuring statement, e.g. `local a, b in tbl`.
+      -- Desugar into the equivalent field-access assignment so the rest of
+      -- the checker can treat it exactly like `local a, b = tbl.a, tbl.b`.
+      local table_node = parse_expression(state)
+      rhs = {}
+
+      for _, name_node in ipairs(lhs) do
+         local field_node = new_outer_node(name_node, "String", {name_node[1]})
+         rhs[#rhs + 1] = new_inner_node(name_node, table_node, "Index", {table_node, field_node})
+      end
    end
 
    return new_inner_node(start_range, rhs and rhs[#rhs] or lhs[#lhs], "Local", {lhs, rhs})
@@ -902,6 +948,19 @@ statements["goto"] = function(state)
    return ast_node
 end
 
+-- For the `lhs in tbl` reassignment form: the field name a given lhs target
+-- reads back out of `tbl` is whatever identifies that target itself, e.g.
+-- `a` reads `tbl.a`, and `x.y` (or `x["y"]`) reads `tbl.y`.
+local function assignment_key_node(target_node)
+   if target_node.tag == "Id" then
+      return new_outer_node(target_node, "String", {target_node[1]})
+   elseif target_node.tag == "Index" and (target_node[2].tag == "String" or target_node[2].tag == "Number") then
+      return target_node[2]
+   else
+      parser.syntax_error("unexpected assignment key", target_node)
+   end
+end
+
 local function parse_expression_statement(state)
    local lhs
    local start_range = copy_range(state)
@@ -951,6 +1010,20 @@ local function parse_expression_statement(state)
       end
 
       return new_inner_node(start_range, rhs[1], "OpSet", {lhs, rhs, compound_operator})
+   elseif state.token == "in" then
+      -- FiveM/Luau destructuring reassignment, e.g. `a, b in tbl`. Desugar
+      -- into the equivalent field-access assignment, same as the `local`
+      -- form, so the rest of the checker treats it like `a, b = tbl.a, tbl.b`.
+      skip_token(state)
+      local table_node = parse_expression(state)
+      local rhs = {}
+
+      for _, target_node in ipairs(lhs) do
+         local field_node = assignment_key_node(target_node)
+         rhs[#rhs + 1] = new_inner_node(target_node, table_node, "Index", {table_node, field_node})
+      end
+
+      return new_inner_node(start_range, table_node, "Set", {lhs, rhs})
    else
       -- This is an assignment in the form `lhs = rhs`.
       check_and_skip_token(state, "=")

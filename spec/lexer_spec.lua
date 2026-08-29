@@ -339,6 +339,19 @@ bar"]]))
       assert.same({line = 1, offset = 1, end_offset = 1, msg = "unfinished long comment"}, get_error("--[=[]]"))
    end)
 
+   it("parses C-style block comments correctly", function()
+      -- FiveM/Luau block comment: reuses the "long_comment" token (see the
+      -- "long comments" case above), so, like "--[[ ]]", no token_value is
+      -- captured; the parser only needs to know the span, not the contents.
+      assert.same({token = "long_comment"}, get_token("/**/"))
+      assert.same({token = "long_comment"}, get_token("/*foo\nbar*/"))
+      assert.same({token = "long_comment"}, get_token("/* star * inside */"))
+      assert.same({token = "long_comment"}, get_token("/*/ not a closer yet */"))
+      assert.same({token = "/"}, get_token("/ 1"))
+      assert.same({token = "//"}, get_token("// 1"))
+      assert.same({line = 1, offset = 1, end_offset = 1, msg = "unfinished long comment"}, get_error("/*"))
+   end)
+
    it("provides correct location info", function()
       assert.same({
          {token = "local", line = 1, offset = 1},

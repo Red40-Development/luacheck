@@ -21,6 +21,7 @@ local BYTE_OBRACE, BYTE_CBRACE = sbyte("{"), sbyte("}")
 local BYTE_QUOTE, BYTE_DQUOTE, BYTE_BTQUOTE = sbyte("'"), sbyte('"'), sbyte('`')
 local BYTE_PLUS, BYTE_DASH, BYTE_LDASH = sbyte("+"), sbyte("-"), sbyte("_")
 local BYTE_SLASH, BYTE_BSLASH = sbyte("/"), sbyte("\\")
+local BYTE_STAR = sbyte("*")
 local BYTE_EQ, BYTE_NE = sbyte("="), sbyte("~")
 local BYTE_LT, BYTE_GT = sbyte("<"), sbyte(">")
 local BYTE_LF, BYTE_CR = sbyte("\n"), sbyte("\r")
@@ -587,6 +588,28 @@ local function lex_div(state)
    if b == BYTE_SLASH then
       state.offset = state.offset + 1
       return "//"
+   elseif b == BYTE_STAR then
+      -- FiveM/Luau C-style block comment: /* ... */. Reuses the
+      -- "long_comment" token so the parser handles it exactly like a
+      -- "--[[ ]]" long comment (i.e. it does not feed inline
+      -- "luacheck: ignore" directives, same as "--[[ ]]" today).
+      local last
+      b = next_byte(state)
+
+      while true do
+         if last == BYTE_STAR and b == BYTE_SLASH then
+            state.offset = state.offset + 1
+            return "long_comment"
+         elseif b == nil then
+            return nil, "unfinished long comment"
+         elseif is_newline(b) then
+            last = b
+            b = skip_newline(state, b)
+         else
+            last = b
+            b = next_byte(state)
+         end
+      end
    else
       return "/"
    end
